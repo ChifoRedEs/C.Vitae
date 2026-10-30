@@ -5,9 +5,9 @@ App web para crear currículums con plantillas, editarlos por secciones y export
 ## Funciones
 
 - **Mis CV**: varios currículums por perfil, con miniatura, duplicar, renombrar y eliminar.
-- **Editor** por pestañas: datos personales y foto, perfil profesional, experiencia, formación, aptitudes, idiomas y cursos o méritos. Vista previa A4 en directo.
+- **Editor** con menú de secciones siempre visible (sin desplazar) y botones Anterior / Siguiente: datos personales y foto, perfil profesional, experiencia, formación, aptitudes, idiomas y cursos o méritos. Vista previa A4 en directo.
 - **Ajuste de foto**: zoom, encuadre, luz y contraste.
-- **Diseño**: 7 plantillas, color de acento, tipografía, tamaño de texto, ajuste automático a una página, y títulos, orden y visibilidad de cada sección.
+- **Diseño**: 21 plantillas en 4 categorías (Columna lateral, Datos arriba, Formal y ATS, Moderna y creativa), color de acento, tipografía, tamaño de texto, ajuste automático a una página, y títulos, orden y visibilidad de cada sección.
 - **Exportar**: PDF (con el diálogo de impresión del navegador), Word `.docx` y copia `.json`.
 - **Mi perfil**: varios perfiles en el mismo navegador, copia de seguridad completa, importación y espacio usado.
 
@@ -50,7 +50,7 @@ generador-cv/
 ├── .nojekyll         Evita que GitHub Pages procese los archivos
 ├── css/
 │   ├── app.css       Interfaz (barra lateral, pestañas, formularios, impresión)
-│   └── cv.css        Estilos de las 7 plantillas del CV
+│   └── cv.css        Estilos de las 21 plantillas del CV
 └── js/
     ├── store.js      Modelo de datos, perfiles, ejemplo y guardado
     ├── templates.js  Plantillas, colores, HTML del CV y ajuste a página A4
@@ -60,7 +60,7 @@ generador-cv/
 
 ## Añadir una plantilla
 
-1. En `js/templates.js`, añade un objeto a `A.PLANTILLAS` con `id`, `nombre`, `desc`, `acento`, `fuente`, `ancho` (de la columna lateral en px) y una función `colores`.
+1. En `js/templates.js`, añade un objeto a `A.PLANTILLAS` con `id`, `cat` (categoría), `layout` (`lateral`, `cabecera`, `columna` o `etiquetas`), `nombre`, `desc`, `acento`, `fuente` y una función `colores`. Opcionales: `ancho` (columna lateral en px), `lado: "der"`, `fotoPos: "der"`, `banda`, `centrado`, `foto: false`, `mono`.
 2. En `css/cv.css`, añade las reglas `.cv.tN …` con lo que la diferencie.
 
 ## Consejos para el PDF

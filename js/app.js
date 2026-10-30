@@ -110,7 +110,7 @@
       const info = wrap.closest(".pane-preview") && wrap.closest(".pane-preview").querySelector("[data-pages]");
       if (info) info.textContent = r.paginas === 1 ? "1 página A4" : `${r.paginas} páginas A4`;
     });
-    if (vistaActual === "diseno") pintarMiniaturasPlantillas();
+    if (vistaActual === "diseno") programarMiniaturas();
   }
   const ro = "ResizeObserver" in window ? new ResizeObserver(entries => entries.forEach(e => {
     if (e.target.classList.contains("preview-wrap")) escalar(e.target); else ajustarMiniaturas(e.target);
@@ -215,31 +215,56 @@
     del: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
     eye: '<svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
   };
+  // Secciones del editor: icono, nombre corto (menú) y nombre completo.
   const SUBTABS = [
-    { id: "datos", nombre: "Datos personales" }, { id: "perfil", nombre: "Perfil" }, { id: "experiencia", nombre: "Experiencia" },
-    { id: "formacion", nombre: "Formación" }, { id: "aptitudes", nombre: "Aptitudes" }, { id: "idiomas", nombre: "Idiomas" }, { id: "meritos", nombre: "Cursos y méritos" }
+    { id: "datos", corto: "Datos", nombre: "Datos personales", ico: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>' },
+    { id: "perfil", corto: "Perfil", nombre: "Perfil profesional", ico: '<path d="M5 4h14v16H5z"/><path d="M8 9h8M8 13h8M8 17h5"/>' },
+    { id: "experiencia", corto: "Experiencia", nombre: "Experiencia", ico: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/>' },
+    { id: "formacion", corto: "Formación", nombre: "Formación", ico: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c2 2 10 2 12 0v-5"/>' },
+    { id: "aptitudes", corto: "Aptitudes", nombre: "Aptitudes", ico: '<path d="M4 12l5 5L20 6"/>' },
+    { id: "idiomas", corto: "Idiomas", nombre: "Idiomas", ico: '<path d="M4 5h9M8.5 3v2M6 5c0 4 3 7 6 8M11 5c0 4-3 8-7 9"/><path d="M13 21l4-9 4 9M14.5 18h5"/>' },
+    { id: "meritos", corto: "Cursos", nombre: "Cursos y méritos", ico: '<circle cx="12" cy="9" r="5"/><path d="M9 13.5L7.5 21l4.5-2.5 4.5 2.5-1.5-7.5"/>' }
   ];
 
   function vistaEditor() {
     const c = cvActual(); if (!c) { view.innerHTML = SIN_CV; return; }
     view.innerHTML = `<div class="split"><div class="pane-form">
-        <div class="subtabs" role="tablist" id="subtabs"></div><div class="stack" id="formBody"></div></div>
+        <nav class="secnav" id="subtabs" aria-label="Secciones del CV"></nav><div class="stack" id="formBody"></div></div>
         ${panelPreview()}</div>
       <button class="btn primary fab-preview" type="button">${ICO.eye}Vista previa</button>`;
     pintarSubtabs(); pintarFormulario(); montarPreview();
-    $("#subtabs").onclick = e => { const b = e.target.closest("[data-tab]"); if (!b) return; subtab = b.dataset.tab; pintarSubtabs(); pintarFormulario(); view.scrollTop = 0; };
+    $("#subtabs").onclick = e => { const b = e.target.closest("[data-tab]"); if (!b) return; irASeccion(b.dataset.tab); };
     const fb = $("#formBody");
     fb.addEventListener("input", onInput); fb.addEventListener("change", onInput); fb.addEventListener("click", onClickForm);
+  }
+  function irASeccion(id) {
+    subtab = id; pintarSubtabs(); pintarFormulario();
+    const nav = $("#subtabs"); if (nav && view.scrollTop > nav.offsetTop) view.scrollTop = Math.max(0, nav.offsetTop - 8);
   }
   function contar(id, d) {
     if (["experiencia", "formacion", "idiomas", "meritos"].includes(id)) return d[id].length;
     if (id === "aptitudes") return d.aptitudes.filter(x => x.trim()).length;
     return null;
   }
+  function relleno(id, d) {
+    if (id === "datos") return !!(d.personal.nombre || d.personal.apellidos);
+    if (id === "perfil") return !!d.perfil.trim();
+    return contar(id, d) > 0;
+  }
   function pintarSubtabs() {
     const d = cvActual().datos;
-    $("#subtabs").innerHTML = SUBTABS.map(t => { const n = contar(t.id, d);
-      return `<button type="button" role="tab" data-tab="${t.id}" class="${t.id === subtab ? "on" : ""}" aria-selected="${t.id === subtab}">${t.nombre}${n != null ? `<span class="n">${n}</span>` : ""}</button>`; }).join("");
+    $("#subtabs").innerHTML = SUBTABS.map(t => { const n = contar(t.id, d), ok = relleno(t.id, d);
+      return `<button type="button" data-tab="${t.id}" class="${t.id === subtab ? "on" : ""}${ok ? " ok" : ""}" aria-current="${t.id === subtab ? "page" : "false"}" title="${esc(t.nombre)}">
+        <svg viewBox="0 0 24 24" aria-hidden="true">${t.ico}</svg><span class="lbl">${t.corto}</span>
+        ${n != null && n > 0 ? `<span class="n">${n}</span>` : (ok ? `<span class="n dot" aria-label="Completado"></span>` : "")}</button>`; }).join("");
+  }
+  function pieNavegacion() {
+    const i = SUBTABS.findIndex(t => t.id === subtab), prev = SUBTABS[i - 1], next = SUBTABS[i + 1];
+    return `<div class="sec-pager">
+      ${prev ? `<button class="btn" type="button" data-ir="${prev.id}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>${esc(prev.nombre)}</button>` : "<span></span>"}
+      <span class="hint">${i + 1} de ${SUBTABS.length}</span>
+      ${next ? `<button class="btn primary" type="button" data-ir="${next.id}">${esc(next.nombre)}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>`
+             : `<a class="btn primary" href="#diseno">Elegir diseño<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></a>`}</div>`;
   }
   const idDe = path => "f-" + path.replace(/[^\w]/g, "_");
   const inp = (label, path, val, type = "text", ph = "") =>
@@ -333,7 +358,7 @@
             ${inp("Horas", `meritos.${i}.horas`, m.horas, "text", "Opcional")}${inp("Año", `meritos.${i}.anio`, m.anio, "text", "2022")}</div></div>`).join("")}</div>`;
         break;
     }
-    fb.innerHTML = h;
+    fb.innerHTML = h + pieNavegacion();
   }
 
   const getAt = path => path.split(".").reduce((o, k) => o[k], cvActual().datos);
@@ -347,11 +372,14 @@
     if (b === "perfil") { const o = $("#perfilCount"); if (o) o.textContent = el.value.length + " caracteres"; }
     const m = b.match(/^experiencia\.(\d+)\.actual$/); if (m) { const f = $(`#f-ex${m[1]}fin`); if (f) f.disabled = el.checked; }
     const head = el.closest(".item") && el.closest(".item").querySelector(".item-head b");
+    pintarSubtabs();
     if (head && /^(experiencia\.\d+\.puesto|formacion\.\d+\.centro|idiomas\.\d+\.idioma|meritos\.\d+\.titulo)$/.test(b)) head.textContent = el.value || "Sin título";
     cambio();
   }
 
   async function onClickForm(ev) {
+    const ir = ev.target.closest("[data-ir]");
+    if (ir) { irASeccion(ir.dataset.ir); return; }
     const a = ev.target.closest("[data-act]");
     if (a) {
       const arr = getAt(a.dataset.path), i = +a.dataset.i;
@@ -470,57 +498,98 @@
     f.addEventListener("change", onInputDiseno);
   }
 
+  let catFiltro = null;
   function pintarDiseno() {
+    const c = cvActual(), t = A.plantilla(c.plantilla);
+    if (!catFiltro) catFiltro = t.cat;
+    const lista = catFiltro === "todas" ? A.PLANTILLAS : A.PLANTILLAS.filter(x => x.cat === catFiltro);
+    const tarjeta = x => `<button type="button" class="tpl${x.id === c.plantilla ? " on" : ""}" data-tpl="${x.id}" aria-pressed="${x.id === c.plantilla}" title="${esc(x.desc)}">
+          <div class="thumb" data-thumb="${x.id}"></div><span class="tpl-name"><span class="tick"></span>${esc(x.nombre)}</span></button>`;
+    const grupos = catFiltro === "todas"
+      ? A.CATEGORIAS.map(cat => `<div class="tpl-group"><h3>${esc(cat.nombre)}</h3><p class="hint">${esc(cat.desc)}</p>
+          <div class="tpl-grid">${A.PLANTILLAS.filter(x => x.cat === cat.id).map(tarjeta).join("")}</div></div>`).join("")
+      : `<p class="hint">${esc(A.categoria(catFiltro).desc)}</p><div class="tpl-grid">${lista.map(tarjeta).join("")}</div>`;
+    $("#disenoForm").innerHTML = `
+      <div class="card"><div class="card-head"><h2>Plantilla</h2><span class="hint" id="tplActual">Elegida: <b>${esc(t.nombre)}</b> · ${esc(A.categoria(t.cat).nombre)}</span></div>
+        <div class="cat-chips" role="tablist" aria-label="Categorías de plantillas">
+          ${A.CATEGORIAS.map(cat => { const n = A.PLANTILLAS.filter(x => x.cat === cat.id).length;
+            return `<button type="button" role="tab" data-cat="${cat.id}" aria-selected="${catFiltro === cat.id}" class="${catFiltro === cat.id ? "on" : ""}">${esc(cat.nombre)}<span class="n">${n}</span></button>`; }).join("")}
+          <button type="button" role="tab" data-cat="todas" aria-selected="${catFiltro === "todas"}" class="${catFiltro === "todas" ? "on" : ""}">Todas<span class="n">${A.PLANTILLAS.length}</span></button>
+        </div>
+        <div id="tplGrid" class="tpl-wrap">${grupos}</div></div>
+      <div class="stack" id="disenoOpts"></div>`;
+    pintarOpcionesDiseno();
+    const g = $("#tplGrid"); if (ro) ro.observe(g);
+    pintarMiniaturasPlantillas();
+  }
+
+  function pintarOpcionesDiseno() {
     const c = cvActual(), t = A.plantilla(c.plantilla), di = c.diseno, pal = A.paleta(c);
     const fuenteSel = di.fuente || "";
-    $("#disenoForm").innerHTML = `
-      <div class="card"><div class="card-head"><h2>Plantilla</h2><span class="hint">${esc(t.nombre)}: ${esc(t.desc)}</span></div>
-        <div class="tpl-grid" id="tplGrid">${A.PLANTILLAS.map(x => `<button type="button" class="tpl${x.id === c.plantilla ? " on" : ""}" data-tpl="${x.id}" aria-pressed="${x.id === c.plantilla}">
-          <div class="thumb" data-thumb="${x.id}"></div><span class="tpl-name"><span class="tick"></span>${esc(x.nombre)}</span></button>`).join("")}</div></div>
+    const conLateral = t.layout === "lateral" || t.layout === "cabecera";
+    $("#disenoOpts").innerHTML = `
       <div class="card"><h2>Color de acento</h2>
+        ${t.mono ? `<p class="hint">«${esc(t.nombre)}» es en blanco y negro, así que no usa color de acento. El color que elijas se aplicará al cambiar a otra plantilla.</p>` : ""}
         <div class="swatches"><button type="button" class="swatch auto${di.acento ? "" : " on"}" data-color="" title="Color de la plantilla" aria-label="Color de la plantilla"></button>
           ${PRESETS.map(col => `<button type="button" class="swatch${di.acento.toLowerCase() === col ? " on" : ""}" data-color="${col}" style="background:${col}" aria-label="Color ${col}"></button>`).join("")}
           <label class="check" title="Elegir otro color"><input type="color" class="color-in" id="dColor" value="${pal.acento}"> Otro</label></div>
-        <p class="hint">${di.acento ? "Color personalizado." : "Usando el color propio de la plantilla."} Si eliges un color claro, el texto de la columna lateral pasa a oscuro para que se lea.</p></div>
-      <div class="card"><h2>Texto</h2><div class="opts">
+        <p class="hint">${di.acento ? "Color personalizado." : "Usando el color propio de cada plantilla."} Si eliges un color claro, el texto sobre él pasa a oscuro para que se lea.</p></div>
+      <div class="card"><h2>Texto y foto</h2><div class="opts">
         <label class="field"><span>Tipografía</span><select id="dFuente">
           <option value="" ${fuenteSel === "" ? "selected" : ""}>La de la plantilla (${esc(A.FUENTES[t.fuente].nombre)})</option>
           ${Object.entries(A.FUENTES).map(([k, f]) => `<option value="${k}" ${fuenteSel === k ? "selected" : ""}>${esc(f.nombre)}</option>`).join("")}</select></label>
         <label class="field"><span>Tamaño del texto</span><div class="range-row"><input type="range" id="dEscala" min="85" max="115" step="1" value="${di.escala}"><output id="dEscalaO">${di.escala}%</output></div></label>
         <div class="opt-row"><label class="switch"><input type="checkbox" id="dAjustar" ${di.ajustar !== false ? "checked" : ""}><span class="track"></span>Ajustar a una página</label>
           <span class="hint">Reduce un poco la letra si no cabe.</span></div>
-        <div class="opt-row"><label class="switch"><input type="checkbox" id="dFoto" ${di.foto !== false ? "checked" : ""}><span class="track"></span>Mostrar foto</label></div>
-        <div class="opt-row"><span class="label">Columna lateral</span><div class="seg" id="dLateral"><button type="button" data-lat="centro" class="${di.lateral !== "izq" ? "on" : ""}">Centrada</button><button type="button" data-lat="izq" class="${di.lateral === "izq" ? "on" : ""}">A la izquierda</button></div></div>
+        <div class="opt-row"><label class="switch"><input type="checkbox" id="dFoto" ${di.foto !== false ? "checked" : ""} ${t.foto === false ? "disabled" : ""}><span class="track"></span>Mostrar foto</label>
+          ${t.foto === false ? `<span class="hint">Esta plantilla no lleva foto.</span>` : ""}</div>
+        ${conLateral ? `<div class="opt-row"><span class="label">Columna lateral</span><div class="seg" id="dLateral"><button type="button" data-lat="centro" class="${di.lateral !== "izq" ? "on" : ""}">Centrada</button><button type="button" data-lat="izq" class="${di.lateral === "izq" ? "on" : ""}">A la izquierda</button></div></div>` : ""}
       </div></div>
-      <div class="card"><h2>Secciones</h2><p class="hint">Cambia el título, el orden o si aparecen. Una sección sin datos no se muestra aunque esté activada.</p>
+      <div class="card"><h2>Secciones</h2><p class="hint">Cambia el título, el orden o si aparecen. Una sección sin datos no se muestra aunque esté activada.${conLateral ? "" : " En esta plantilla todas las secciones van en una columna, en el orden de la lista."}</p>
         <div class="sec-list">${c.secciones.map((s, i) => { const def = A.seccionDef(s.clave); return `<div class="sec-row${s.visible ? "" : " off"}">
           <label class="check" title="Mostrar u ocultar"><input type="checkbox" data-sec-vis="${i}" ${s.visible ? "checked" : ""} aria-label="Mostrar ${esc(def.nombre)}"></label>
           <input type="text" id="sec-${s.clave}" data-sec-tit="${i}" value="${esc(s.titulo)}" placeholder="Sin título (${esc(def.nombre)})" aria-label="Título de ${esc(def.nombre)}">
-          <span class="col">${def.col === "side" ? "Lateral" : "Principal"}</span>
+          <span class="col">${A.columnaDe(s.clave, t) === "side" ? "Lateral" : "Principal"}</span>
           <button class="icon-btn" type="button" data-sec-mv="up" data-i="${i}" ${i === 0 ? "disabled" : ""} aria-label="Subir">${ICO.up}</button>
           <button class="icon-btn" type="button" data-sec-mv="down" data-i="${i}" ${i === c.secciones.length - 1 ? "disabled" : ""} aria-label="Bajar">${ICO.down}</button></div>`; }).join("")}</div></div>`;
-    const g = $("#tplGrid"); if (ro) ro.observe(g);
-    pintarMiniaturasPlantillas();
   }
+
+  let tMini = null;
+  function programarMiniaturas() { clearTimeout(tMini); tMini = setTimeout(pintarMiniaturasPlantillas, 650); }
   function pintarMiniaturasPlantillas() {
     const c = cvActual(); if (!c) return;
-    $$("[data-thumb]").forEach(el => { el.innerHTML = A.cvAjustado(c, el.dataset.thumb).html; });
-    const g = $("#tplGrid"); if (g) ajustarMiniaturas(g);
+    const els = $$("[data-thumb]");
+    let i = 0;
+    const paso = () => {   // por tandas para no bloquear la página
+      const fin = Math.min(els.length, i + 4);
+      for (; i < fin; i++) { const el = els[i]; if (el.isConnected) { el.innerHTML = A.cvAjustado(c, el.dataset.thumb).html; const cv = el.firstElementChild; if (cv) cv.style.transform = `scale(${el.clientWidth / A.PAGE_W})`; } }
+      if (i < els.length) requestAnimationFrame(paso);
+    };
+    paso();
   }
   function onClickDiseno(e) {
     const c = cvActual(), di = c.diseno;
+    const cat = e.target.closest("[data-cat]");
+    if (cat) { catFiltro = cat.dataset.cat; pintarDiseno(); return; }
     const tp = e.target.closest("[data-tpl]");
-    if (tp) { c.plantilla = tp.dataset.tpl; pintarDiseno(); cambio(); return; }
+    if (tp) {
+      c.plantilla = tp.dataset.tpl; const t = A.plantilla(c.plantilla);
+      $$("[data-tpl]").forEach(b => { const on = b.dataset.tpl === c.plantilla; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+      $("#tplActual").innerHTML = `Elegida: <b>${esc(t.nombre)}</b> · ${esc(A.categoria(t.cat).nombre)}`;
+      pintarOpcionesDiseno(); guardar(); c.actualizado = new Date().toISOString(); clearTimeout(tPrev); tPrev = setTimeout(pintarPreview, 30);
+      if (window.matchMedia("(max-width: 1180px)").matches) toast(`Plantilla «${t.nombre}» aplicada. Pulsa «Vista previa» para verla.`);
+      return;
+    }
     const sw = e.target.closest("[data-color]");
-    if (sw) { di.acento = sw.dataset.color; pintarDiseno(); cambio(); return; }
+    if (sw) { di.acento = sw.dataset.color; pintarOpcionesDiseno(); cambio(); return; }
     const lat = e.target.closest("[data-lat]");
-    if (lat) { di.lateral = lat.dataset.lat; pintarDiseno(); cambio(); return; }
+    if (lat) { di.lateral = lat.dataset.lat; pintarOpcionesDiseno(); cambio(); return; }
     const mv = e.target.closest("[data-sec-mv]");
-    if (mv) { const i = +mv.dataset.i, a = c.secciones, j = mv.dataset.secMv === "up" ? i - 1 : i + 1; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; pintarDiseno(); cambio(); }
+    if (mv) { const i = +mv.dataset.i, a = c.secciones, j = mv.dataset.secMv === "up" ? i - 1 : i + 1; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; pintarOpcionesDiseno(); cambio(); }
   }
   function onInputDiseno(e) {
     const c = cvActual(), di = c.diseno, el = e.target;
-    if (el.id === "dColor") { if (e.type === "change") { di.acento = el.value; pintarDiseno(); } else { di.acento = el.value; } cambio(); }
+    if (el.id === "dColor") { di.acento = el.value; if (e.type === "change") pintarOpcionesDiseno(); cambio(); }
     else if (el.id === "dFuente") { di.fuente = el.value; cambio(); }
     else if (el.id === "dEscala") { di.escala = +el.value; $("#dEscalaO").textContent = el.value + "%"; cambio(); }
     else if (el.id === "dAjustar" && e.type === "change") { di.ajustar = el.checked; cambio(); }

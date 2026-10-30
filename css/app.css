@@ -135,13 +135,33 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 [data-cerrar-preview] { display: none; }
 .check input.color-in { width: 44px; height: 34px; }
 
-.subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
-.subtabs button { border: 1px solid transparent; background: transparent; border-radius: 999px; padding: 6px 13px; cursor: pointer; font-weight: 500; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
-.subtabs button:hover { background: var(--surface); color: var(--fg); }
-.subtabs button.on { background: var(--accent); color: var(--accent-ink); }
-.subtabs .n { font-size: .72rem; background: var(--line-2); color: var(--muted); border-radius: 999px; padding: 0 7px; }
-.subtabs button.on .n { background: rgba(255,255,255,.25); color: inherit; }
+/* Menú de secciones del editor: todas visibles, sin desplazamiento */
+.secnav { position: sticky; top: -26px; z-index: 5; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px;
+  margin: -26px 0 20px; padding: 26px 0 12px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.secnav button { position: relative; display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0;
+  border: 1px solid var(--line); background: var(--surface); border-radius: 11px; padding: 10px 4px 8px; cursor: pointer; color: var(--muted); font-weight: 500; font-size: .82rem; }
+.secnav button:hover { border-color: var(--accent); color: var(--fg); }
+.secnav button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); box-shadow: 0 3px 10px rgba(30, 80, 76, .25); }
+.secnav svg { width: 21px; height: 21px; }
+.secnav .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.secnav .n { position: absolute; top: 5px; right: 6px; font-size: .68rem; line-height: 1; min-width: 17px; padding: 3px 5px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.secnav .n.dot { min-width: 0; width: 8px; height: 8px; padding: 0; background: var(--ok); top: 8px; right: 9px; }
+.secnav button.on .n { background: rgba(255,255,255,.25); color: inherit; }
+.secnav button.on .n.dot { background: #fff; }
+.sec-pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 4px; }
+.sec-pager .btn svg { width: 16px; height: 16px; }
 
+/* Galería de plantillas por categorías */
+.cat-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.cat-chips button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 13px; cursor: pointer; font-weight: 500; display: inline-flex; gap: 7px; align-items: center; }
+.cat-chips button:hover { border-color: var(--accent); }
+.cat-chips button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.cat-chips .n { font-size: .72rem; background: var(--line-2); color: var(--muted); border-radius: 999px; padding: 0 7px; }
+.cat-chips button.on .n { background: rgba(255,255,255,.25); color: inherit; }
+.tpl-wrap { display: grid; gap: 14px; }
+.tpl-group { display: grid; gap: 8px; }
+.tpl-group + .tpl-group { border-top: 1px solid var(--line-2); padding-top: 16px; }
+.tpl-group h3 { font-size: 1rem; }
 .item { border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; background: var(--surface-2); }
 .item-head { display: flex; align-items: center; gap: 6px; }
 .item-head b { font-family: var(--f-display); margin-right: auto; min-width: 0; overflow-wrap: anywhere; }
@@ -240,8 +260,12 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
   .nav a { flex-direction: column; gap: 2px; padding: 6px 8px; font-size: .7rem; }
   .nav a.on { box-shadow: inset 0 3px 0 var(--accent); }
   .view { padding: 18px 16px 30px; }
-  .subtabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
-  .subtabs button { flex: none; }
+  .secnav { grid-template-columns: repeat(4, minmax(0, 1fr)); top: -18px; margin-top: -18px; padding-top: 18px; }
+  .secnav button { padding: 6px 2px 5px; gap: 2px; font-size: .72rem; border-radius: 9px; }
+  .secnav svg { width: 18px; height: 18px; }
+  .secnav { gap: 5px; padding-bottom: 8px; margin-bottom: 14px; }
+  .sec-pager .btn { padding: 8px 10px; font-size: .86rem; }
+  .sec-pager .hint { display: none; }
   .fab-preview { bottom: calc(80px + env(safe-area-inset-bottom)); }
   .photo-editor { grid-template-columns: 1fr; justify-items: center; }
   .sec-row { grid-template-columns: auto 1fr auto auto; }

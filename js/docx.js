@@ -46,10 +46,11 @@ window.CVApp = window.CVApp || {};
 
   function r(texto, o = {}) {
     const props = [
-      o.b ? "<w:b/><w:bCs/>" : "", o.i ? "<w:i/>" : "", o.caps ? "<w:caps/>" : "",
+      o.b ? "<w:b/><w:bCs/>" : "", o.i ? "<w:i/>" : "", o.caps ? "<w:caps/>" : "", o.smallCaps ? "<w:smallCaps/>" : "",
       o.color ? `<w:color w:val="${hx(o.color)}"/>` : "",
       o.sp ? `<w:spacing w:val="${o.sp}"/>` : "",
-      o.size ? `<w:sz w:val="${o.size}"/><w:szCs w:val="${o.size}"/>` : ""
+      o.size ? `<w:sz w:val="${o.size}"/><w:szCs w:val="${o.size}"/>` : "",
+      o.fondo ? `<w:shd w:val="clear" w:color="auto" w:fill="${hx(o.fondo)}"/>` : ""
     ].join("");
     const partes = String(texto == null ? "" : texto).split("\n");
     const cuerpo = partes.map((t, i) => (i ? "<w:br/>" : "") + `<w:t xml:space="preserve">${x(t)}</w:t>`).join("");
@@ -57,7 +58,7 @@ window.CVApp = window.CVApp || {};
   }
   function p(runs, o = {}) {
     const props = [
-      o.keep ? "<w:keepNext/>" : "",
+      "",  // sin «conservar con el siguiente»: dentro de tablas impide que el contenido pase de página
       o.bordeArriba ? `<w:pBdr><w:top w:val="single" w:sz="${o.bordeArriba.sz}" w:space="${o.bordeArriba.space || 8}" w:color="${hx(o.bordeArriba.color)}"/></w:pBdr>` : "",
       o.bordeAbajo ? `<w:pBdr><w:bottom w:val="single" w:sz="${o.bordeAbajo.sz}" w:space="${o.bordeAbajo.space || 8}" w:color="${hx(o.bordeAbajo.color)}"/></w:pBdr>` : "",
       `<w:spacing w:before="${o.antes || 0}" w:after="${o.despues == null ? 60 : o.despues}" w:line="${o.linea || 259}" w:lineRule="auto"/>`,
@@ -82,7 +83,7 @@ window.CVApp = window.CVApp || {};
     const props = [
       `<w:tcW w:w="${ancho}" w:type="dxa"/>`,
       o.span ? `<w:gridSpan w:val="${o.span}"/>` : "",
-      o.bordeDer ? `<w:tcBorders><w:right w:val="single" w:sz="6" w:color="${hx(o.bordeDer)}"/></w:tcBorders>` : "",
+      (o.bordeDer || o.bordeIzq) ? `<w:tcBorders>${o.bordeIzq ? `<w:left w:val="single" w:sz="6" w:color="${hx(o.bordeIzq)}"/>` : ""}${o.bordeDer ? `<w:right w:val="single" w:sz="6" w:color="${hx(o.bordeDer)}"/>` : ""}</w:tcBorders>` : "",
       o.fondo && o.fondo.toLowerCase() !== "#ffffff" ? `<w:shd w:val="clear" w:color="auto" w:fill="${hx(o.fondo)}"/>` : "",
       `<w:tcMar><w:top w:w="${o.arriba || 0}" w:type="dxa"/><w:left w:w="${o.izq || 0}" w:type="dxa"/><w:bottom w:w="${o.abajo || 0}" w:type="dxa"/><w:right w:w="${o.der || 0}" w:type="dxa"/></w:tcMar>`,
       o.valign ? `<w:vAlign w:val="${o.valign}"/>` : ""
@@ -100,30 +101,45 @@ window.CVApp = window.CVApp || {};
   const fila = (celdas, alto) => `<w:tr><w:trPr>${alto ? `<w:trHeight w:val="${alto}" w:hRule="atLeast"/>` : ""}</w:trPr>${celdas.join("")}</w:tr>`;
 
   /* ---------- Contenido ---------- */
-  function construir(cv, fotoPNG) {
+  function construir(cv, fotoPNG, fsAjustado) {
     const t = A.plantilla(cv.plantilla), pal = A.paleta(cv), d = cv.datos, per = d.personal;
-    const fs = 13.4 * (cv.diseno.escala || 100) / 100 * 0.96;
+    const fs = (fsAjustado || 13.4 * (cv.diseno.escala || 100) / 100) * 0.96;
     const T = hp(fs), TS = hp(fs * 0.95);
-    const alin = cv.diseno.lateral === "izq" ? "left" : "center";
+    const dosCol = t.layout === "lateral" || t.layout === "cabecera";
+    const alin = t.id === "s3" || cv.diseno.lateral === "izq" ? "left" : "center";
     const visibles = cv.secciones.filter(s => s.visible && A.tieneDatos(s.clave, d));
-    const conFoto = cv.diseno.foto !== false && !!fotoPNG;
+    const conFoto = A.conFoto(cv, t) && !!fotoPNG;
+    const ANCHO = 11906, ALTO = 16838;
+    const banda = !!t.banda || t.id === "m1";
+    const fgCab = banda ? pal.hdFg : null;
+    const nombreEnTinta = !["t3", "s4", "f1", "f3", "f4"].includes(t.id);
+    const smallCaps = t.id === "f1" || t.id === "f3";
 
-    // --- Columna lateral
-    const lado = [];
-    const fotoXML = conFoto ? p(imagen("rIdFoto", t.cabecera ? 130 : 165, "Foto"), { alin: t.cabecera ? "left" : "center", despues: 240 }) : "";
     const contacto = [];
     if (per.telefono) contacto.push(per.telefono);
     if (per.email) contacto.push(per.email);
     if (per.web) contacto.push(per.web);
-    if (per.direccion || per.localidad) contacto.push([per.direccion, per.localidad].filter(Boolean).join("\n"));
+    if (per.direccion || per.localidad) contacto.push([per.direccion, per.localidad].filter(Boolean).join(dosCol && t.layout === "lateral" ? "\n" : ", "));
 
-    if (!t.cabecera) {
+    // --- Nombre y titular
+    const centrar = t.centrado ? "center" : "left";
+    const ident = [
+      p([r(per.nombre + " ", { b: t.id !== "f1", color: fgCab || (nombreEnTinta ? pal.tinta : pal.name), size: hp(t.layout === "lateral" ? 34 : 36) }),
+         r(per.apellidos, { b: t.id !== "f1", color: fgCab || pal.name, size: hp(t.layout === "lateral" ? 34 : 36) })], { despues: per.titular ? 40 : 0, linea: 240, alin: centrar })
+    ];
+    if (per.titular) ident.push(p(r(per.titular, { color: fgCab || (t.id === "f3" ? pal.tinta : "#444444"), size: hp(fs * 1.3), i: t.id === "f1", caps: t.id === "f3" }), { despues: 0, alin: centrar }));
+
+    // --- Columna lateral (solo plantillas de dos columnas)
+    const lado = [];
+    const tamFoto = t.layout === "lateral" ? (t.id === "t9" ? 140 : 165) : (t.layout === "cabecera" ? 130 : (t.id === "s4" ? 90 : 112));
+    const fotoXML = conFoto ? p(imagen("rIdFoto", tamFoto, "Foto"), { alin: t.layout === "lateral" ? "center" : "left", despues: t.layout === "lateral" ? 240 : 0 }) : "";
+    if (t.layout === "lateral") {
       if (fotoXML) lado.push(fotoXML);
       contacto.forEach(c => lado.push(p(r(c, { color: pal.sideFg, size: TS }), { alin, despues: 140 })));
     }
     const shLado = s => p(r(s.titulo, { b: true, caps: true, color: pal.sideHead, size: hp(fs * 1.25), sp: 10 }),
-      { alin, antes: 300, despues: 120, keep: true, bordeArriba: { sz: 24, color: pal.sideRule, space: 10 } });
-    visibles.filter(s => A.seccionDef(s.clave).col === "side").forEach(s => {
+      { alin, antes: 300, despues: 120, keep: true, bordeArriba: t.id === "s3" ? null : { sz: 24, color: pal.sideRule, space: 10 } });
+    if (dosCol) visibles.filter(s => A.seccionDef(s.clave).col === "side").forEach(s => {
       if (s.titulo) lado.push(shLado(s));
       if (s.clave === "personal") {
         A.itemsPersonales(per).forEach(i => {
@@ -141,69 +157,140 @@ window.CVApp = window.CVApp || {};
       });
     });
 
-    // --- Columna principal
-    const main = [];
-    const nombre = [r(per.nombre + " ", { b: true, color: t.cabecera ? pal.hdFg : pal.tinta, size: hp(34) }), r(per.apellidos, { b: true, color: t.cabecera ? pal.hdFg : pal.name, size: hp(34) })];
-    const ident = [];
-    ident.push(p(nombre, { despues: per.titular ? 40 : 0, linea: 240 }));
-    if (per.titular) ident.push(p(r(per.titular, { color: t.cabecera ? pal.hdFg : "#444444", size: hp(fs * 1.3) }), { despues: 0 }));
-    if (!t.cabecera) {
-      main.push(...ident);
-      main.push(p("", { despues: 120, bordeAbajo: { sz: t.id === "t6" ? 6 : 18, color: t.id === "t3" ? pal.acento : pal.rule, space: 1 }, linea: 120 }));
-    }
-    let primera = true;
-    visibles.filter(s => A.seccionDef(s.clave).col === "main").forEach(s => {
-      if (s.titulo) {
-        main.push(p(r(s.titulo, { b: true, caps: t.id !== "t6", color: pal.tinta, size: hp(fs * 1.3), sp: 8 }),
-          { antes: primera ? 120 : 220, despues: 100, keep: true, bordeArriba: primera ? null : { sz: t.id === "t6" || t.id === "t3" ? 6 : 18, color: t.id === "t3" ? "#d8d8d8" : pal.rule, space: 10 } }));
-      } else if (!primera) main.push(p("", { despues: 60, linea: 120 }));
-      primera = false;
-      const bullet = (txt, nivel) => p([r(nivel ? "•" : "▪", { color: nivel ? "#000000" : "#333333", size: T }), r(txt, { size: T, tab: true })],
-        { ind: nivel ? 620 : 300, colgante: nivel ? 260 : 300, despues: 30 });
+    // --- Contenido de cada sección en la columna principal
+    const bullet = (txt, nivel) => p([r(nivel ? "•" : "▪", { color: nivel ? "#000000" : "#333333", size: T }), r(txt, { size: T, tab: true })],
+      { ind: nivel ? 620 : 300, colgante: nivel ? 260 : 300, despues: 30 });
+    function cuerpoSeccion(s) {
+      const out = [];
       switch (s.clave) {
-        case "perfil": main.push(p(r(d.perfil, { size: T }), { despues: 60 })); break;
+        case "perfil": out.push(p(r(d.perfil, { size: T }), { despues: 60 })); break;
         case "experiencia":
-          d.experiencia.forEach(j => {
+          d.experiencia.forEach((j, k) => {
             const per2 = A.periodo(j);
-            main.push(p([r(j.puesto, { b: true, size: T }), per2 ? r(" | " + per2, { size: T }) : ""], { antes: 100, despues: 20, keep: true }));
-            if (j.empresa || j.ciudad) main.push(p([r(j.empresa, { b: true, size: T }), j.ciudad ? r(" – " + j.ciudad + ".", { size: T }) : ""], { despues: 40, keep: true }));
+            out.push(p([r(j.puesto, { b: true, size: T }), per2 ? r(" | " + per2, { size: T }) : ""], { antes: k ? 100 : 0, despues: 20, keep: true }));
+            if (j.empresa || j.ciudad) out.push(p([r(j.empresa, { b: true, size: T }), j.ciudad ? r(" – " + j.ciudad + ".", { size: T }) : ""], { despues: 40, keep: true }));
             (j.tareas || []).filter(z => z && z.trim()).forEach(z => {
               const { cabeza, subs } = A.partirTarea(z);
-              main.push(bullet(cabeza, 0));
-              subs.forEach(sb => main.push(bullet(sb, 1)));
+              out.push(bullet(cabeza, 0));
+              subs.forEach(sb => out.push(bullet(sb, 1)));
             });
           });
           break;
         case "formacion":
-          d.formacion.forEach(f => {
-            main.push(p([r("•", { size: T }), r(f.centro, { b: true, size: T, tab: true }), r((f.anio ? " | " + f.anio : "") + (f.ciudad ? " - " + f.ciudad + "." : ""), { size: T }),
-              f.titulo ? r("\n" + f.titulo, { size: T }) : ""], { ind: 300, colgante: 300, despues: 80 }));
-          });
+          d.formacion.forEach(f => out.push(p([r("•", { size: T }), r(f.centro, { b: true, size: T, tab: true }), r((f.anio ? " | " + f.anio : "") + (f.ciudad ? " - " + f.ciudad + "." : ""), { size: T }),
+            f.titulo ? r("\n" + f.titulo, { size: T }) : ""], { ind: 300, colgante: 300, despues: 80 })));
           break;
         case "aptitudes":
-          d.aptitudes.filter(z => z && z.trim()).forEach(a => main.push(p([r("✓", { b: true, color: pal.tinta, size: T }), r(a, { size: T, tab: true })], { ind: 320, colgante: 320, despues: 40 })));
+          d.aptitudes.filter(z => z && z.trim()).forEach(a => out.push(p([r(t.mono ? "•" : "✓", { b: true, color: pal.tinta, size: T }), r(a, { size: T, tab: true })], { ind: 320, colgante: 320, despues: 40 })));
+          break;
+        case "personal": {
+          const runs = [];
+          A.itemsPersonales(per).forEach((i, k) => {
+            if (k) runs.push(r("   ·   ", { size: T, color: "#888888" }));
+            if (i.destacado) runs.push(r(i.destacado, { b: true, size: T }));
+            else { if (i.etiqueta) runs.push(r(i.etiqueta + ": ", { b: true, size: T })); runs.push(r(i.valor, { size: T })); }
+          });
+          out.push(p(runs, { despues: 60 }));
+          break;
+        }
+        case "idiomas": {
+          const runs = [];
+          d.idiomas.forEach((i, k) => { if (k) runs.push(r("      ", { size: T })); runs.push(r(i.idioma, { b: true, size: T })); if (i.nivel) runs.push(r(" · " + i.nivel, { size: T })); });
+          out.push(p(runs, { despues: 60 }));
+          break;
+        }
+        case "meritos":
+          d.meritos.forEach(m => {
+            const extra = [m.horas ? `${m.horas} h.` : "", m.anio].filter(Boolean).join(" - ");
+            out.push(p([r("▪", { size: T }), r(m.titulo, { b: true, size: T, tab: true }), r((m.entidad ? " " + m.entidad : "") + (extra ? ` (${extra}).` : ""), { size: T })], { ind: 300, colgante: 300, despues: 30 }));
+          });
           break;
       }
-    });
+      return out;
+    }
+
+    // --- Títulos de sección según el estilo de la plantilla
+    function titulo(s, primera) {
+      const o = { b: true, caps: !smallCaps && t.id !== "t6", smallCaps, color: pal.tinta, size: hp(fs * (t.id === "f2" ? 1.0 : 1.3)), sp: 8 };
+      if (t.id === "m1") return p(r(" " + s.titulo + " ", Object.assign(o, { color: "#ffffff", fondo: pal.tinta, size: hp(fs * 1.05) })), { antes: primera ? 60 : 240, despues: 120, keep: true });
+      if (t.layout === "lateral" || t.layout === "cabecera") {
+        const fina = ["t6", "t3", "t8", "s3"].includes(t.id);
+        return p(r(s.titulo, o), { antes: primera ? 120 : 220, despues: 100, keep: true,
+          bordeArriba: primera ? null : { sz: fina ? 6 : 18, color: t.id === "t3" || t.id === "t8" ? "#d8d8d8" : pal.rule, space: 10 } });
+      }
+      return p(r(s.titulo, o), { antes: primera ? 60 : 240, despues: 120, keep: true,
+        bordeAbajo: ["m2", "m3", "m4"].includes(t.id) ? null : { sz: t.id === "f1" ? 6 : 10, color: t.mono ? pal.rule : pal.rule, space: 2 } });
+    }
+
+    const mainSecs = visibles.filter(s => !dosCol || A.seccionDef(s.clave).col === "main");
+    const main = [];
+    if (t.layout === "lateral") {
+      main.push(...ident);
+      main.push(p("", { despues: 120, bordeAbajo: { sz: t.id === "t6" ? 6 : 18, color: t.id === "t3" ? pal.acento : pal.rule, space: 1 }, linea: 120 }));
+    }
+    let cuerpoEtiquetas = null;
+    if (t.layout === "etiquetas") {
+      const wEt = tw(170), wRest = ANCHO - tw(84) - wEt;
+      const filas = mainSecs.map(s => fila([
+        celda(wEt, p(r(s.titulo, { b: true, caps: true, color: pal.tinta, size: hp(fs * 0.98), sp: 8 }), { alin: "right", despues: 0 }), { der: tw(18), arriba: 60, abajo: 160 }),
+        celda(wRest, cuerpoSeccion(s).join(""), { izq: tw(20), arriba: 60, abajo: 160, bordeIzq: pal.rule })
+      ]));
+      cuerpoEtiquetas = filas.length ? tabla([wEt, wRest], filas) : "";
+    } else {
+      let primera = true;
+      mainSecs.forEach(s => {
+        if (s.titulo) main.push(titulo(s, primera));
+        else if (!primera) main.push(p("", { despues: 40, linea: 120 }));
+        primera = false;
+        main.push(...cuerpoSeccion(s));
+      });
+    }
 
     // --- Montaje de la página
-    const ANCHO = 11906, ALTO = 16838;
-    const wLado = tw(t.ancho), wMain = ANCHO - wLado;
-    const celdaLado = (alto) => celda(wLado, lado.join("") || p("", { despues: 0 }), { fondo: pal.sideBg, arriba: tw(t.cabecera ? 24 : 30), izq: tw(22), der: tw(22), abajo: tw(24), bordeDer: t.id === "t6" ? pal.rule : null });
-    const celdaMain = celda(wMain, main.join("") || p("", { despues: 0 }), { arriba: tw(t.cabecera ? 24 : 30), izq: tw(30), der: tw(30), abajo: tw(24) });
     let cuerpo;
-    if (t.cabecera) {
-      const wFoto = conFoto ? tw(180) : 0;
-      const txt = [...ident, ...contacto.map(c => p(r(c.replace("\n", ", "), { color: pal.hdFg, size: TS }), { despues: 20 }))].join("");
-      const interior = conFoto
-        ? tabla([wFoto, ANCHO - tw(68) - wFoto], [fila([celda(wFoto, fotoXML), celda(ANCHO - tw(68) - wFoto, txt, { valign: "center" })])])
-        : txt;
-      const cab = fila([celda(ANCHO, interior + p("", { despues: 0, linea: 120 }), { span: 2, fondo: pal.hdBg, arriba: tw(26), abajo: tw(20), izq: tw(34), der: tw(34) })]);
-      cuerpo = tabla([wLado, wMain], [cab, fila([celdaLado(), celdaMain], ALTO - 3600)]);
+    if (t.layout === "lateral") {
+      const wLado = tw(t.ancho), wMain = ANCHO - wLado;
+      const cL = celda(wLado, lado.join("") || p("", { despues: 0 }), { fondo: pal.sideBg, arriba: tw(30), izq: tw(22), der: tw(22), abajo: tw(24), bordeDer: t.id === "t6" ? pal.rule : null });
+      const cM = celda(wMain, main.join("") || p("", { despues: 0 }), { arriba: tw(30), izq: tw(30), der: tw(30), abajo: tw(24) });
+      cuerpo = t.lado === "der" ? tabla([wMain, wLado], [fila([cM, cL], ALTO - 120)]) : tabla([wLado, wMain], [fila([cL, cM], ALTO - 120)]);
     } else {
-      const celdas = t.lado === "der" ? [celdaMain, celdaLado()] : [celdaLado(), celdaMain];
-      const anchos = t.lado === "der" ? [wMain, wLado] : [wLado, wMain];
-      cuerpo = tabla(anchos, [fila(celdas, ALTO - 120)]);
+      // Cabecera: foto + nombre y contacto
+      const franja = t.id === "m4" ? tw(16) : 0;
+      const anchoUtil = ANCHO - franja;
+      const margen = t.layout === "cabecera" ? 34 : (t.id === "m4" ? 42 : 42);
+      const wInt = anchoUtil - tw(margen * 2);
+      const lineaContacto = contacto.length ? p(contacto.map((c, k) => r((k ? "   ·   " : "") + c, { color: fgCab || "#222222", size: TS })), { despues: 0, antes: 120, alin: centrar }) : "";
+      const textoCab = ident.join("") + lineaContacto;
+      const wFoto = conFoto ? tw(tamFoto + 26) : 0;
+      let interior;
+      if (conFoto) {
+        const cF = celda(wFoto, fotoXML, { valign: "center", der: t.fotoPos === "der" ? 0 : tw(20), izq: t.fotoPos === "der" ? tw(20) : 0 });
+        const cT = celda(wInt - wFoto, textoCab, { valign: "center" });
+        interior = t.fotoPos === "der" ? tabla([wInt - wFoto, wFoto], [fila([cT, cF])]) : tabla([wFoto, wInt - wFoto], [fila([cF, cT])]);
+      } else interior = textoCab;
+      const separador = banda ? "" : p("", { despues: 0, linea: 120, bordeAbajo: { sz: t.id === "f3" ? 24 : (t.id === "f1" ? 6 : 18), color: t.id === "f1" ? "#111111" : (t.id === "s3" || t.id === "f2" || t.id === "m4" ? pal.acento : pal.rule), space: 6 } });
+      const cabFondo = banda ? pal.hdBg : null;
+      const sep = '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/><w:rPr><w:sz w:val="2"/></w:rPr></w:pPr></w:p>';
+      const cabCelda = celda(anchoUtil, interior + p("", { despues: 0, linea: 120 }) + separador,
+        { fondo: cabFondo, arriba: tw(t.layout === "cabecera" ? 26 : 34), abajo: tw(banda ? 24 : 6), izq: tw(margen), der: tw(margen) });
+      const cabCeldaSola = cabCelda;
+
+      if (t.layout === "cabecera") {
+        const wLado = tw(t.ancho), wMain = ANCHO - wLado;
+        const cL = celda(wLado, lado.join("") || p("", { despues: 0 }), { fondo: pal.sideBg, arriba: tw(24), izq: tw(22), der: tw(22), abajo: tw(24), bordeIzq: t.id === "s3" ? pal.rule : null });
+        const cM = celda(wMain, main.join("") || p("", { despues: 0 }), { arriba: tw(24), izq: tw(30), der: tw(30), abajo: tw(24) });
+        const anchos = t.lado === "der" ? [wMain, wLado] : [wLado, wMain];
+        cuerpo = tabla([ANCHO], [fila([cabCeldaSola])]) + sep + tabla(anchos, [fila(t.lado === "der" ? [cM, cL] : [cL, cM], ALTO - 4400)]);
+      } else {
+        const contenido = (cuerpoEtiquetas != null ? cuerpoEtiquetas + p("", { despues: 0 }) : main.join("")) || p("", { despues: 0 });
+        const cBody = celda(anchoUtil, contenido, { arriba: tw(banda ? 24 : 14), izq: tw(margen), der: tw(margen), abajo: tw(24) });
+        if (franja) {
+          const cS = (alto) => celda(franja, "", { fondo: pal.acento });
+          cuerpo = tabla([franja, anchoUtil], [fila([cS(), cabCelda])]) + sep + tabla([franja, anchoUtil], [fila([cS(), cBody], ALTO - 4400)]);
+        } else {
+          cuerpo = tabla([ANCHO], [fila([cabCelda])]) + sep + tabla([ANCHO], [fila([cBody])]);
+        }
+      }
     }
     const fuente = x(pal.fuente.word);
     const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -255,7 +342,7 @@ ${conFoto ? '<Relationship Id="rIdFoto" Type="http://schemas.openxmlformats.org/
   }
 
   // Dibuja la foto en círculo con su aro, como en la plantilla, y la devuelve como PNG.
-  function fotoCircular(src, aro, fondo) {
+  function fotoCircular(src, aro, fondo, forma) {
     return new Promise((ok) => {
       if (!src) return ok(null);
       const img = new Image();
@@ -263,10 +350,12 @@ ${conFoto ? '<Relationship Id="rIdFoto" Type="http://schemas.openxmlformats.org/
         const S = 480, B = 14, c = document.createElement("canvas"); c.width = c.height = S;
         const g = c.getContext("2d");
         g.fillStyle = fondo; g.fillRect(0, 0, S, S);
-        g.beginPath(); g.arc(S / 2, S / 2, S / 2, 0, Math.PI * 2); g.fillStyle = aro; g.fill();
-        g.save(); g.beginPath(); g.arc(S / 2, S / 2, S / 2 - B, 0, Math.PI * 2); g.clip();
+        const s0 = Math.min(img.width, img.height);
+        if (forma === "rect") { g.drawImage(img, (img.width - s0) / 2, (img.height - s0) / 2, s0, s0, 0, 0, S, S); c.toBlob(b => b.arrayBuffer().then(buf => ok(new Uint8Array(buf))), "image/png"); return; }
+        if (aro) { g.beginPath(); g.arc(S / 2, S / 2, S / 2, 0, Math.PI * 2); g.fillStyle = aro; g.fill(); }
+        g.save(); g.beginPath(); g.arc(S / 2, S / 2, S / 2 - (aro ? B : 0), 0, Math.PI * 2); g.clip();
         const s = Math.min(img.width, img.height);
-        g.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, B, B, S - 2 * B, S - 2 * B);
+        const m = aro ? B : 0; g.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, m, m, S - 2 * m, S - 2 * m);
         g.restore();
         c.toBlob(b => b.arrayBuffer().then(buf => ok(new Uint8Array(buf))), "image/png");
       };
@@ -277,8 +366,12 @@ ${conFoto ? '<Relationship Id="rIdFoto" Type="http://schemas.openxmlformats.org/
 
   A.exportarWord = async (cv) => {
     const t = A.plantilla(cv.plantilla), pal = A.paleta(cv);
-    const foto = cv.diseno.foto !== false ? await fotoCircular(cv.datos.personal.foto, pal.ring, t.cabecera ? pal.hdBg : pal.sideBg) : null;
-    return construir(cv, foto);
+    const fondo = t.layout === "lateral" ? pal.sideBg : (t.banda || t.id === "m1" ? pal.hdBg : "#ffffff");
+    const forma = ["f2", "f3"].includes(t.id) ? "rect" : "circulo";
+    const aro = ["s4"].includes(t.id) ? null : pal.ring;
+    const foto = A.conFoto(cv, t) ? await fotoCircular(cv.datos.personal.foto, aro, fondo, forma) : null;
+    const fit = A.cvAjustado(cv);
+    return construir(cv, foto, fit.fs);
   };
   A._zip = zip;
 })(window.CVApp);
