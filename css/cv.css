@@ -1,0 +1,117 @@
+/* Estilos de las plantillas del CV (A4 = 794 × 1123 px). Los colores llegan como variables desde templates.js. */
+.cv {
+  --fs: 13.4px; --sfs: 12.6px; --nfs: 36px;
+  width: 794px; height: 1123px; overflow: hidden; position: relative;
+  background: #fff; color: #000; text-align: left;
+  font-family: var(--font); font-size: var(--fs); line-height: 1.36;
+  display: grid; grid-template-columns: var(--sw) 1fr; grid-template-rows: 100%;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.cv *, .cv *::before, .cv *::after { box-sizing: border-box; }
+.cv.lado-der { grid-template-columns: 1fr var(--sw); }
+.cv.lado-der .side { order: 2; }
+.cv.con-cabecera { grid-template-rows: auto 1fr; }
+
+.cv .side {
+  background: var(--side-bg); color: var(--side-fg); font-size: var(--sfs);
+  padding: 30px 22px 28px; display: flex; flex-direction: column; gap: calc(var(--sfs) * 1.15);
+  overflow: hidden; min-width: 0;
+}
+.cv.lat-centro .side { text-align: center; }
+.cv .main { padding: 30px 30px 24px; display: flex; flex-direction: column; gap: calc(var(--fs) * 1.05); overflow: hidden; min-width: 0; }
+
+.cv .photo { width: 180px; height: 180px; border-radius: 50%; margin: 0 auto; border: 5px solid var(--ring); overflow: hidden; flex: none;
+  background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 62px; font-weight: 700; }
+.cv .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.cv .ident { padding-bottom: 14px; border-bottom: 3px solid var(--rule); }
+.cv .name { font-size: var(--nfs); font-weight: 700; line-height: 1.1; color: var(--name); white-space: nowrap; }
+.cv .name .a { color: var(--tinta); }
+.cv .titular { font-size: calc(var(--fs) * 1.3); color: #444; margin-top: 6px; letter-spacing: .01em; }
+
+.cv .contact { display: grid; gap: calc(var(--sfs) * .75); font-size: calc(var(--sfs) * 1.04); }
+.cv .contact div { overflow-wrap: anywhere; }
+.cv .contact svg { width: 17px; height: 17px; fill: currentColor; opacity: .9; flex: none; }
+.cv.lat-centro .contact div { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.cv.lat-izq .contact div { display: grid; grid-template-columns: 20px 1fr; gap: 9px; align-items: start; }
+.cv.lat-izq .contact svg { margin-top: 1px; }
+
+.cv .sh { font-weight: 700; letter-spacing: .04em; text-transform: uppercase; line-height: 1.4; margin: 0 0 8px; }
+.cv .side .sh { color: var(--side-head); font-size: calc(var(--sfs) * 1.3); padding-top: calc(var(--sfs) * 1.05);
+  border-top: 5px solid var(--side-rule); margin-bottom: calc(var(--sfs) * .7); }
+.cv .main .sh { color: var(--tinta); font-size: calc(var(--fs) * 1.32); }
+.cv .main .sec + .sec { padding-top: 14px; border-top: 3px solid var(--rule); }
+.cv .main .sec + .sec.sin-titulo { padding-top: 0; border-top: 0; margin-top: calc(var(--fs) * -.35); }
+
+.cv ul { margin: 0; padding: 0; }
+.cv .side ul { list-style: none; display: grid; gap: calc(var(--sfs) * .62); }
+.cv .side li { line-height: 1.32; }
+.cv .side .lb { display: block; font-size: .86em; text-transform: uppercase; letter-spacing: .07em; opacity: .78; }
+.cv .side .lb2 { display: block; opacity: .85; }
+.cv .mer li + li::before { content: ""; display: block; width: 26px; height: 2px; background: currentColor; opacity: .3; margin: 0 auto calc(var(--sfs) * .62); }
+.cv.lat-izq .mer li + li::before { margin-left: 0; }
+.cv .mer .ti { font-weight: 700; display: block; }
+.cv .mer .ent { display: block; font-size: .9em; opacity: .85; }
+.cv .nw { white-space: nowrap; }
+
+.cv .perfil { margin: 0; }
+.cv .job { margin-bottom: calc(var(--fs) * .7); }
+.cv .job:last-child { margin-bottom: 0; }
+.cv .co { margin-top: 2px; }
+.cv .job > ul { margin-top: 4px; padding-left: 18px; list-style: square; }
+.cv .job li { margin-bottom: 2px; }
+.cv ul.subl { list-style: disc; padding-left: 18px; margin-top: 2px; }
+.cv .edu { list-style: disc; padding-left: 18px; display: grid; gap: 6px; }
+.cv .edu .t { display: block; margin-top: 1px; }
+.cv .apt { list-style: none; display: grid; gap: 4px; }
+.cv .apt li { padding-left: 20px; position: relative; }
+.cv .apt li::before { content: "✓"; position: absolute; left: 0; color: var(--tinta); font-weight: 700; }
+.cv .sec-formacion + .sec-aptitudes .apt, .cv .edu + .apt { margin-top: 10px; }
+
+/* Sin foto: el contacto empieza arriba */
+.cv.sin-foto .side { padding-top: 34px; }
+
+/* ---------- Variantes ---------- */
+/* t2 Corporativa */
+.cv.t2 .ident { border-bottom-width: 2px; }
+/* t3 Grafito */
+.cv.t3 .ident { border-bottom: 0; padding-bottom: 0; }
+.cv.t3 .ident::after { content: ""; display: block; width: 80px; height: 5px; background: var(--accent); margin-top: 14px; }
+.cv.t3 .name .a { color: var(--name); }
+.cv.t3 .main .sec + .sec { border-top-width: 1px; border-top-color: #d8d8d8; }
+.cv.t3 .side .sh { border-top-width: 2px; }
+/* t4 Cabecera */
+.cv.t4 .hd { grid-column: 1 / -1; background: var(--hd-bg); color: var(--hd-fg); display: flex; align-items: center; gap: 28px; padding: 26px 34px; }
+.cv.t4 .hd .photo { width: 150px; height: 150px; margin: 0; border-width: 4px; }
+.cv.t4 .hd-txt { min-width: 0; flex: 1; }
+.cv.t4 .ident { border: 0; padding: 0; }
+.cv.t4 .name, .cv.t4 .name .a { color: var(--hd-fg); }
+.cv.t4 .name .a { opacity: .8; }
+.cv.t4 .titular { color: var(--hd-fg); opacity: .85; }
+.cv.t4 .hd .contact { margin-top: 12px; font-size: calc(var(--fs) * 1.02); gap: 5px; }
+.cv.t4 .hd .contact div { display: grid; grid-template-columns: 20px 1fr; gap: 9px; align-items: start; text-align: left; }
+.cv.t4 .hd .contact svg { fill: var(--hd-fg); }
+.cv.t4 .side { padding-top: 24px; }
+.cv.t4 .main { padding-top: 24px; }
+.cv.t4 .side .sh { border-top-width: 2px; }
+/* t5 Línea de tiempo */
+.cv.t5 .photo { border-width: 4px; }
+.cv.t5 .ident { border-bottom-width: 2px; }
+.cv.t5 .main .sec + .sec { border-top-width: 2px; }
+.cv.t5 .side .sh { border-top-width: 2px; }
+.cv.t5 .job { border-left: 2px solid var(--rule); padding-left: 16px; position: relative; margin-left: 5px; }
+.cv.t5 .job::before { content: ""; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); }
+/* t6 Minimal */
+.cv.t6 .side { border-right: 1px solid var(--rule); }
+.cv.t6 .photo { border-width: 3px; }
+.cv.t6 .sh, .cv.t6 .name { font-family: "Source Serif 4", Georgia, serif; }
+.cv.t6 .sh { text-transform: none; letter-spacing: .01em; }
+.cv.t6 .main .sh { font-size: calc(var(--fs) * 1.55); }
+.cv.t6 .side .sh { border-top-width: 1px; font-size: calc(var(--sfs) * 1.5); }
+.cv.t6 .ident, .cv.t6 .main .sec + .sec { border-width: 1px; }
+/* t7 Elegante */
+.cv.t7 .sh { font-family: "Work Sans", Arial, sans-serif; letter-spacing: .12em; }
+.cv.t7 .side .sh { border-top-width: 2px; font-size: calc(var(--sfs) * 1.2); }
+.cv.t7 .main .sh { font-size: calc(var(--fs) * 1.2); }
+.cv.t7 .name { font-weight: 600; }
+.cv.t7 .main .sec + .sec { border-top-width: 2px; }
